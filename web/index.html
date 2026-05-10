@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vuca — Diagnostico de Infraestrutura</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar__inner">
+    <div class="topbar__brand">
+      <span class="topbar__logo">Vuca</span>
+      <span class="topbar__sub">Diagnostico de Infraestrutura</span>
+    </div>
+    <span class="topbar__hint">Preencha os dados da unidade e clique em "Executar diagnostico"</span>
+  </div>
+</header>
+
+<main class="container">
+  <form id="js-form" class="card">
+    <section class="form-section">
+      <h2>Identificacao</h2>
+      <div class="grid grid--2">
+        <label>
+          <span>Instancia</span>
+          <input type="text" id="instancia" name="instancia" placeholder="ex: lifeboxburger" required />
+          <small>Sera testado <code id="js-host-preview">{instancia}.vucasolution.com.br</code></small>
+        </label>
+        <label>
+          <span>URL do VucaLocal</span>
+          <input type="text" id="vucalocal" name="vucalocal" placeholder="http://localhost:8080" />
+          <small>Endpoint local do VucaLocal (opcional)</small>
+        </label>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <h2>RabbitMQ</h2>
+      <div class="grid grid--2">
+        <label>
+          <span>Host</span>
+          <input type="text" id="rabbit_host" value="localhost" />
+        </label>
+        <label>
+          <span>Portas (separadas por virgula)</span>
+          <input type="text" id="rabbit_portas" value="5672, 15672" />
+        </label>
+      </div>
+    </section>
+
+    <section class="form-section">
+      <div class="form-section__head">
+        <h2>Impressoras</h2>
+        <button type="button" id="js-add-impressora" class="btn btn--ghost">+ adicionar impressora</button>
+      </div>
+      <div id="js-impressoras" class="impressoras"></div>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn--primary" id="js-executar">Executar diagnostico</button>
+    </div>
+  </form>
+
+  <section id="js-progresso" class="card card--progresso hidden">
+    <h2>Executando checks</h2>
+    <ul id="js-progresso-lista" class="progresso-lista"></ul>
+  </section>
+
+  <section id="js-resultado" class="card card--resultado hidden">
+    <header class="resultado-header">
+      <h2>Relatorio</h2>
+      <div class="resultado-acoes">
+        <button type="button" id="js-baixar" class="btn btn--primary">Baixar HTML</button>
+        <button type="button" id="js-novo" class="btn btn--ghost">Novo diagnostico</button>
+      </div>
+    </header>
+    <div id="js-resumo" class="resumo"></div>
+    <div id="js-detalhes" class="detalhes"></div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
