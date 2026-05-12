@@ -2,85 +2,514 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Relatorio Vuca — {{.Config.Instancia}}</title>
 <style>
-:root { --cor1:#e85a4f; --cinza1:#f5f6f7; --cinza2:#e5e7eb; --cinza4:#9ca3af; --cinza5:#4b5563; --cinza6:#1f2937;
-  --verde:#16a34a; --vermelho:#dc2626; --laranja:#ea580c; }
+:root {
+  --cor1: #e85a4f;
+  --cor1-dark: #c4453b;
+  --cinza0: #fafbfc;
+  --cinza1: #f5f6f7;
+  --cinza2: #e5e7eb;
+  --cinza3: #d1d5db;
+  --cinza4: #9ca3af;
+  --cinza5: #4b5563;
+  --cinza6: #1f2937;
+  --verde: #16a34a;
+  --verde-light: #dcfce7;
+  --verde-bg: #f0fdf4;
+  --vermelho: #dc2626;
+  --vermelho-light: #fee2e2;
+  --vermelho-bg: #fef2f2;
+  --laranja: #ea580c;
+  --laranja-light: #ffedd5;
+  --laranja-bg: #fff7ed;
+  --azul: #2563eb;
+  --azul-light: #dbeafe;
+}
 * { box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--cinza1); color: var(--cinza6); margin: 0; padding: 24px; font-size: 14px; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--cinza1);
+  color: var(--cinza6);
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 24px 16px;
+}
 .wrap { max-width: 980px; margin: 0 auto; }
-.header { background: #fff; border-radius: 10px; padding: 20px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; }
-.header h1 { margin: 0 0 4px; font-size: 22px; color: var(--cor1); }
-.header .meta { color: var(--cinza5); font-size: 13px; }
-.resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-.resumo-card { background: #fff; border: 1px solid var(--cinza2); border-radius: 8px; padding: 14px; }
-.resumo-card .v { font-size: 24px; font-weight: 700; }
-.resumo-card .l { font-size: 11px; color: var(--cinza4); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 4px; }
-.resumo-card.ok .v { color: var(--verde); }
+
+/* Cabecalho */
+.header {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px 28px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+  border-top: 4px solid var(--cor1);
+}
+.header h1 { margin: 0 0 6px; font-size: 22px; color: var(--cor1); font-weight: 700; }
+.header .subtitulo { font-size: 13px; color: var(--cinza4); margin: 0 0 12px; }
+.header .meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  font-size: 13px;
+  color: var(--cinza5);
+}
+.header .meta dt { font-weight: 600; color: var(--cinza4); }
+.header .meta dd { margin: 0; color: var(--cinza6); }
+
+/* Veredito */
+.veredito {
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.veredito--ok   { background: var(--verde-bg); border: 1px solid var(--verde-light); }
+.veredito--warn { background: var(--laranja-bg); border: 1px solid var(--laranja-light); }
+.veredito--fail { background: var(--vermelho-bg); border: 1px solid var(--vermelho-light); }
+.veredito__icone {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.veredito--ok .veredito__icone   { background: var(--verde); }
+.veredito--warn .veredito__icone { background: var(--laranja); }
+.veredito--fail .veredito__icone { background: var(--vermelho); }
+.veredito__texto h2 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+.veredito__texto p  { margin: 0; font-size: 14px; color: var(--cinza5); }
+.veredito--ok .veredito__texto h2   { color: var(--verde); }
+.veredito--warn .veredito__texto h2 { color: var(--laranja); }
+.veredito--fail .veredito__texto h2 { color: var(--vermelho); }
+
+/* Resumo numerico */
+.resumo {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (max-width: 720px) { .resumo { grid-template-columns: repeat(2, 1fr); } }
+.resumo-card {
+  background: #fff;
+  border: 1px solid var(--cinza2);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.resumo-card .v { font-size: 26px; font-weight: 700; line-height: 1; }
+.resumo-card .l {
+  font-size: 11px;
+  color: var(--cinza4);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 6px;
+}
+.resumo-card.ok .v   { color: var(--verde); }
 .resumo-card.warn .v { color: var(--laranja); }
 .resumo-card.fail .v { color: var(--vermelho); }
-.section { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 12px; }
-.section h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--cinza4); margin: 0 0 12px; }
-.check { border: 1px solid var(--cinza2); border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
-.check__head { display: flex; align-items: center; gap: 12px; }
-.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.dot.ok { background: var(--verde); }
-.dot.warn { background: var(--laranja); }
-.dot.fail { background: var(--vermelho); }
-.dot.info { background: var(--cinza4); }
-.check__title { flex: 1; }
-.check__cat { font-size: 10px; color: var(--cinza4); text-transform: uppercase; letter-spacing: 0.4px; }
-.check__nome { font-size: 14px; font-weight: 600; margin-top: 2px; }
-.check__msg { font-size: 13px; color: var(--cinza5); margin-top: 4px; }
-.check__det { font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; color: var(--cinza5); background: var(--cinza1); padding: 10px; border-radius: 6px; margin-top: 10px; white-space: pre-wrap; word-break: break-all; }
+
+/* Secoes */
+.section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 22px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  margin-bottom: 16px;
+}
+.section h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--cinza4);
+  margin: 0 0 16px;
+}
+
+/* Configuracao testada */
 .config-tabela { width: 100%; border-collapse: collapse; font-size: 13px; }
-.config-tabela td { padding: 6px 12px; border-bottom: 1px solid var(--cinza2); }
-.config-tabela td:first-child { color: var(--cinza4); font-weight: 600; width: 200px; }
-@media print { body { background: #fff; } .section, .header, .resumo-card { box-shadow: none; border: 1px solid var(--cinza2); } }
+.config-tabela td { padding: 8px 12px; border-bottom: 1px solid var(--cinza2); vertical-align: top; }
+.config-tabela tr:last-child td { border-bottom: none; }
+.config-tabela td:first-child {
+  color: var(--cinza4);
+  font-weight: 600;
+  width: 200px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+}
+
+/* Check item */
+.check {
+  background: #fff;
+  border: 1px solid var(--cinza2);
+  border-left-width: 4px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.check--ok   { border-left-color: var(--verde); }
+.check--warn { border-left-color: var(--laranja); }
+.check--fail { border-left-color: var(--vermelho); }
+.check--info { border-left-color: var(--cinza4); }
+
+.check__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--cinza0);
+  border-bottom: 1px solid var(--cinza2);
+}
+.check__icone {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.check--ok .check__icone   { background: var(--verde); }
+.check--warn .check__icone { background: var(--laranja); }
+.check--fail .check__icone { background: var(--vermelho); }
+.check--info .check__icone { background: var(--cinza4); }
+
+.check__titulo { flex: 1; min-width: 0; }
+.check__categoria {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--cinza4);
+  font-weight: 600;
+}
+.check__nome { font-size: 15px; font-weight: 600; color: var(--cinza6); margin-top: 1px; word-break: break-word; }
+.check__tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.check--ok .check__tag   { background: var(--verde-light); color: var(--verde); }
+.check--warn .check__tag { background: var(--laranja-light); color: var(--laranja); }
+.check--fail .check__tag { background: var(--vermelho-light); color: var(--vermelho); }
+.check--info .check__tag { background: var(--cinza1); color: var(--cinza5); }
+.check__duracao {
+  font-size: 11px;
+  color: var(--cinza4);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.check__corpo {
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bloco { display: flex; flex-direction: column; gap: 6px; }
+.bloco h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--cinza4);
+  margin: 0;
+  font-weight: 700;
+}
+.bloco p { margin: 0; font-size: 13px; color: var(--cinza6); line-height: 1.6; }
+.bloco--mensagem p {
+  background: var(--cinza1);
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 3px solid var(--cinza3);
+  font-size: 13px;
+}
+.check--ok   .bloco--mensagem p { border-left-color: var(--verde); background: var(--verde-bg); }
+.check--warn .bloco--mensagem p { border-left-color: var(--laranja); background: var(--laranja-bg); }
+.check--fail .bloco--mensagem p { border-left-color: var(--vermelho); background: var(--vermelho-bg); }
+.bloco--causas, .bloco--acoes {
+  background: var(--laranja-bg);
+  border: 1px solid var(--laranja-light);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+.check--fail .bloco--causas, .check--fail .bloco--acoes {
+  background: var(--vermelho-bg);
+  border-color: var(--vermelho-light);
+}
+.bloco--causas ul, .bloco--acoes ol {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+.bloco--causas li, .bloco--acoes li {
+  font-size: 13px;
+  color: var(--cinza6);
+  line-height: 1.6;
+  margin-bottom: 2px;
+}
+
+/* Etapas / detalhes colapsaveis */
+details.colapsavel {
+  background: var(--cinza1);
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+details.colapsavel summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cinza5);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  list-style: none;
+}
+details.colapsavel summary::-webkit-details-marker { display: none; }
+details.colapsavel summary::before { content: "▸ "; color: var(--cinza4); }
+details.colapsavel[open] summary::before { content: "▾ "; }
+details.colapsavel summary:hover { color: var(--cinza6); }
+
+.etapas-lista {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.etapa {
+  background: #fff;
+  border: 1px solid var(--cinza2);
+  border-left-width: 3px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.etapa--ok   { border-left-color: var(--verde); }
+.etapa--warn { border-left-color: var(--laranja); }
+.etapa--fail { border-left-color: var(--vermelho); }
+.etapa--info { border-left-color: var(--cinza4); }
+.etapa__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.etapa__numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--cinza1);
+  color: var(--cinza5);
+  font-size: 11px;
+}
+.etapa__dur {
+  font-size: 11px;
+  color: var(--cinza4);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.etapa__detalhe {
+  font-size: 12px;
+  color: var(--cinza5);
+  padding-left: 26px;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+details.colapsavel pre {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--cinza5);
+  background: #fff;
+  border: 1px solid var(--cinza2);
+  border-radius: 6px;
+  padding: 10px;
+  margin: 12px 0 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Rodape */
+.footer {
+  text-align: center;
+  font-size: 12px;
+  color: var(--cinza4);
+  padding: 20px 8px;
+  margin-top: 8px;
+}
+.footer p { margin: 4px 0; }
+.footer .legenda {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 18px;
+  margin-top: 8px;
+}
+.footer .legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.footer .legenda .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+.footer .legenda .dot.ok { background: var(--verde); }
+.footer .legenda .dot.warn { background: var(--laranja); }
+.footer .legenda .dot.fail { background: var(--vermelho); }
+.footer .legenda .dot.info { background: var(--cinza4); }
+
+/* Print */
+@media print {
+  body { background: #fff; padding: 0; font-size: 11px; }
+  .wrap { max-width: 100%; }
+  .header, .veredito, .resumo-card, .section, .check, details.colapsavel {
+    box-shadow: none;
+    border: 1px solid var(--cinza2);
+    page-break-inside: avoid;
+  }
+  details.colapsavel { background: #fff; }
+  details.colapsavel pre { font-size: 10px; }
+  .footer { font-size: 10px; }
+  /* Abre todos os detalhes ao imprimir */
+  details { display: block !important; }
+  details > summary { display: none; }
+  details > *:not(summary) { display: block !important; }
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="header">
-    <h1>Relatorio Vuca — Diagnostico de Infraestrutura</h1>
-    <div class="meta">Instancia: <strong>{{.Config.Instancia}}</strong> &middot; Gerado em {{formatar .GeradoEm}}</div>
-  </div>
 
-  <div class="resumo">
+  <!-- Cabecalho -->
+  <header class="header">
+    <h1>Relatorio de Diagnostico de Infraestrutura</h1>
+    <p class="subtitulo">Validacao do ambiente de rede para operacao do Vuca</p>
+    <dl class="meta">
+      <dt>Instancia:</dt><dd><strong>{{.Config.Instancia}}</strong></dd>
+      <dt>Gerado em:</dt><dd>{{formatar .GeradoEm}}</dd>
+    </dl>
+  </header>
+
+  <!-- Veredito geral -->
+  <section class="veredito veredito--{{vereditoClasse .Resultados}}">
+    <div class="veredito__icone">{{statusIcone (vereditoStatus .Resultados)}}</div>
+    <div class="veredito__texto">
+      <h2>{{vereditoTitulo .Resultados}}</h2>
+      <p>{{vereditoResumo .Resultados}}</p>
+    </div>
+  </section>
+
+  <!-- Resumo numerico -->
+  <section class="resumo">
     <div class="resumo-card ok"><div class="v">{{contar .Resultados "ok"}}</div><div class="l">OK</div></div>
     <div class="resumo-card warn"><div class="v">{{contar .Resultados "warn"}}</div><div class="l">Atencao</div></div>
     <div class="resumo-card fail"><div class="v">{{contar .Resultados "fail"}}</div><div class="l">Falhas</div></div>
     <div class="resumo-card"><div class="v">{{len .Resultados}}</div><div class="l">Total</div></div>
-  </div>
+  </section>
 
-  <div class="section">
+  <!-- Configuracao testada -->
+  <section class="section">
     <h2>Configuracao testada</h2>
     <table class="config-tabela">
       <tr><td>Instancia</td><td>{{.Config.Instancia}}.vucasolution.com.br</td></tr>
-      <tr><td>VucaLocal</td><td>{{.Config.VucaLocal}}</td></tr>
+      <tr><td>VucaLocal</td><td>{{if .Config.VucaLocal}}{{.Config.VucaLocal}}{{else}}<em style="color:var(--cinza4)">nao informado</em>{{end}}</td></tr>
       <tr><td>RabbitMQ host</td><td>{{.Config.RabbitMQ.Host}}</td></tr>
       <tr><td>RabbitMQ portas</td><td>{{range .Config.RabbitMQ.Portas}}{{.}} {{end}}</td></tr>
-      <tr><td>Impressoras</td><td>{{range .Config.Impressoras}}{{.Nome}} ({{.IP}}:{{.Porta}}) &middot; {{end}}</td></tr>
+      <tr><td>Impressoras</td><td>{{if .Config.Impressoras}}{{range .Config.Impressoras}}{{.Nome}} ({{.IP}}:{{.Porta}})<br>{{end}}{{else}}<em style="color:var(--cinza4)">nenhuma</em>{{end}}</td></tr>
+      {{if .Config.PortasCustomizadas}}<tr><td>Portas customizadas</td><td>{{range .Config.PortasCustomizadas}}{{.Nome}} ({{.Host}}:{{.Porta}})<br>{{end}}</td></tr>{{end}}
     </table>
-  </div>
+  </section>
 
-  <div class="section">
-    <h2>Resultados ({{len .Resultados}})</h2>
+  <!-- Resultados detalhados -->
+  <section class="section">
+    <h2>Resultados detalhados — {{len .Resultados}} verificacoes</h2>
+
     {{range .Resultados}}
-    <div class="check">
-      <div class="check__head">
-        <span class="dot {{statusClass .Status}}"></span>
-        <div class="check__title">
-          <div class="check__cat">{{.Categoria}}</div>
+    {{$exp := explicar .}}
+    <article class="check check--{{statusClass .Status}}">
+      <header class="check__head">
+        <div class="check__icone">{{statusIcone .Status}}</div>
+        <div class="check__titulo">
+          <div class="check__categoria">{{.Categoria}}</div>
           <div class="check__nome">{{.Nome}}</div>
-          <div class="check__msg">{{.Mensagem}}</div>
         </div>
-        <span style="font-size:11px;color:var(--cinza4);">{{.DuracaoMs}}ms</span>
+        <span class="check__tag">{{statusTexto .Status}}</span>
+        <span class="check__duracao">{{.DuracaoMs}}ms</span>
+      </header>
+      <div class="check__corpo">
+        <div class="bloco">
+          <h3>O que esse teste verifica</h3>
+          <p>{{$exp.OQueSignifica}}</p>
+        </div>
+        <div class="bloco bloco--mensagem">
+          <h3>Resultado encontrado</h3>
+          <p>{{.Mensagem}}</p>
+        </div>
+        {{if $exp.Interpretacao}}
+        <div class="bloco">
+          <h3>O que isso significa</h3>
+          <p>{{$exp.Interpretacao}}</p>
+        </div>
+        {{end}}
+        {{if $exp.Causas}}
+        <div class="bloco bloco--causas">
+          <h3>Causas mais comuns</h3>
+          <ul>{{range $exp.Causas}}<li>{{.}}</li>{{end}}</ul>
+        </div>
+        {{end}}
+        {{if $exp.Acoes}}
+        <div class="bloco bloco--acoes">
+          <h3>O que fazer</h3>
+          <ol>{{range $exp.Acoes}}<li>{{.}}</li>{{end}}</ol>
+        </div>
+        {{end}}
+        {{if .SubPassos}}
+        <details class="colapsavel">
+          <summary>Etapas executadas ({{len .SubPassos}})</summary>
+          <ol class="etapas-lista">
+            {{range $i, $sp := .SubPassos}}
+            <li class="etapa etapa--{{statusClass $sp.Status}}">
+              <div class="etapa__head">
+                <span class="etapa__numero">{{addOne $i}}</span>
+                <span>{{$sp.Descricao}}</span>
+                {{if $sp.DuracaoMs}}<span class="etapa__dur">{{$sp.DuracaoMs}}ms</span>{{end}}
+              </div>
+              {{if $sp.Detalhe}}<div class="etapa__detalhe">{{$sp.Detalhe}}</div>{{end}}
+            </li>
+            {{end}}
+          </ol>
+        </details>
+        {{end}}
+        {{if .Detalhes}}
+        <details class="colapsavel">
+          <summary>Dados tecnicos (JSON)</summary>
+          <pre>{{json .Detalhes}}</pre>
+        </details>
+        {{end}}
       </div>
-      {{if .Detalhes}}<div class="check__det">{{json .Detalhes}}</div>{{end}}
-    </div>
+    </article>
     {{end}}
-  </div>
+  </section>
+
+  <!-- Rodape -->
+  <footer class="footer">
+    <p>Relatorio gerado pelo Vuca Infra Diagnostico em {{formatar .GeradoEm}}</p>
+    <p class="legenda">
+      <span><span class="dot ok"></span> OK = tudo funcionando</span>
+      <span><span class="dot warn"></span> Atencao = funciona mas confira</span>
+      <span><span class="dot fail"></span> Falha = precisa resolver</span>
+      <span><span class="dot info"></span> Info = contexto</span>
+    </p>
+  </footer>
+
 </div>
 </body>
 </html>
