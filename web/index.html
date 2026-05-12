@@ -18,13 +18,268 @@
 </header>
 
 <main class="container">
+
+  <details class="manual">
+    <summary class="manual__summary">
+      <span class="manual__icone">?</span>
+      <span class="manual__label">Como usar este diagnostico — manual completo</span>
+      <span class="manual__seta">▾</span>
+    </summary>
+
+    <div class="manual__corpo">
+
+      <section class="manual__secao">
+        <h3>O que e este diagnostico?</h3>
+        <p>
+          Ferramenta para validar a rede de um estabelecimento antes ou durante a operacao
+          do Vuca. Roda checks que simulam o que a aplicacao real faz e relatam — em
+          linguagem comum — onde estao os problemas e como corrigir.
+        </p>
+        <p>
+          O foco e' detectar problemas que sao <strong>imperceptiveis no dia-a-dia</strong>:
+          DNS lento que faz o tablet abrir devagar, certificado expirando, antivirus
+          interceptando HTTPS, MTU mal configurado causando upload lento, perda intermitente
+          de pacote, e por ai vai.
+        </p>
+      </section>
+
+      <section class="manual__secao">
+        <h3>Como rodar uma validacao</h3>
+        <ol>
+          <li><strong>Preencha os campos</strong> da identificacao (instancia da loja, opcionalmente URL do VucaLocal).</li>
+          <li><strong>Configure RabbitMQ</strong> se for um cliente que usa impressao via nuvem (host e portas — geralmente <code>vucaprint-3.vucasolution.com.br</code> e portas <code>5672, 15672</code>).</li>
+          <li><strong>Adicione cada impressora</strong> da loja com nome, IP e porta (normalmente 9100).</li>
+          <li><strong>Adicione portas customizadas</strong> se houver servicos extras a validar (TEF, banco, API interna).</li>
+          <li>Clique em <strong>"Executar diagnostico"</strong>.</li>
+          <li>Acompanhe os cards aparecendo ao vivo — cada teste mostra seu progresso em tempo real.</li>
+          <li>Ao final, clique em <strong>"Baixar HTML"</strong> e mande o arquivo gerado pelo WhatsApp/email para o suporte.</li>
+        </ol>
+        <p class="manual__nota">
+          <strong>Dica:</strong> os dados que voce preenche ficam salvos no navegador.
+          Na proxima vez que rodar, o formulario ja vem pronto.
+        </p>
+      </section>
+
+      <section class="manual__secao">
+        <h3>Significado de cada campo</h3>
+        <dl>
+          <dt>Instancia</dt>
+          <dd>
+            E' o "apelido" da loja no Vuca, sem o dominio. Por exemplo, se a loja e'
+            <code>lifeboxburger.vucasolution.com.br</code>, voce digita apenas
+            <code>lifeboxburger</code>. O diagnostico monta a URL completa automaticamente.
+            <strong>Campo opcional</strong> — se nao informar, o teste roda em modo
+            "validacao parcial" (so' rede interna).
+          </dd>
+
+          <dt>URL do VucaLocal</dt>
+          <dd>
+            URL <strong>local</strong> da aplicacao VucaLocal instalada na maquina do
+            cliente. Geralmente <code>http://localhost:8080</code>. <strong>Nao e'</strong>
+            uma URL publica — se voce colocar um endereco da nuvem aqui, o teste vai
+            reclamar. Deixe em branco se o cliente nao usa VucaLocal.
+          </dd>
+
+          <dt>RabbitMQ — Host</dt>
+          <dd>
+            Servidor de filas usado para enviar jobs de impressao via nuvem. Geralmente
+            algo como <code>vucaprint-3.vucasolution.com.br</code>.
+          </dd>
+
+          <dt>RabbitMQ — Portas</dt>
+          <dd>
+            Portas TCP a testar separadas por virgula. Padrao: <code>5672</code> (protocolo
+            AMQP) e <code>15672</code> (painel de administracao). A 5672 e' a que importa
+            para impressao funcionar.
+          </dd>
+
+          <dt>Impressoras</dt>
+          <dd>
+            Lista das impressoras termicas da loja. Para cada uma: nome amigavel (ex:
+            "Cozinha", "Caixa"), IP na rede local e porta (padrao <code>9100</code>).
+            Suporta IP fixo, DHCP (se souber o IP atual) e impressoras Wi-Fi. Nao
+            suporta impressoras conectadas por cabo USB direto (essas nao tem como
+            ser testadas via rede).
+          </dd>
+
+          <dt>Portas customizadas</dt>
+          <dd>
+            Testes adicionais para qualquer servico que voce queira validar:
+            maquininha TEF (porta 4096 ou similar), Postgres interno, API de
+            integracao, etc. Cada entrada e' apenas Nome + Host + Porta.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="manual__secao">
+        <h3>O que cada categoria de teste valida</h3>
+
+        <h4>Sistema</h4>
+        <p>Informacoes do PC onde o diagnostico esta rodando. Apenas contexto — nunca falha.</p>
+
+        <h4>Rede Local</h4>
+        <p>
+          A "saude" da rede onde o PC esta conectado. Inclui: lista de interfaces
+          (placas de rede), latencia ate o roteador, descoberta de MTU, IP publico,
+          velocidade de banda (download de 10MB), e teste de latencia estendido (50
+          amostras em 30s para pegar instabilidade).
+        </p>
+
+        <h4>Ambiente</h4>
+        <p>
+          Interferencias no PC que podem afetar todos os outros testes silenciosamente:
+          proxy/VPN configurados, drift do relogio (diferenca da hora local vs internet),
+          perfil de energia do Windows (economia pode causar drops de Wi-Fi).
+        </p>
+
+        <h4>Conectividade</h4>
+        <p>
+          Validacoes ate a nuvem Vuca: resolucao DNS multi-servidor (sistema vs 1.1.1.1
+          vs 8.8.8.8), HTTPS direto na instancia, latencia ate o servidor, tempos por
+          fase (DNS/TCP/TLS/TTFB), validacao do certificado SSL (incluindo deteccao
+          de antivirus interceptando), e consistencia (3 requisicoes seguidas).
+        </p>
+
+        <h4>RabbitMQ</h4>
+        <p>
+          Acesso ao servidor de filas: porta TCP aberta + handshake AMQP completo
+          (garante que e' realmente RabbitMQ, nao algum outro servico ocupando a porta).
+        </p>
+
+        <h4>VucaLocal</h4>
+        <p>
+          Se a URL local foi informada, testa se o servico VucaLocal esta respondendo
+          e qual status retorna.
+        </p>
+
+        <h4>Impressoras</h4>
+        <p>
+          Para cada impressora: teste TCP basico + comando ESC/POS de status (consegue
+          identificar tampa aberta, papel acabando, impressora travada). Nao imprime nada.
+        </p>
+
+        <h4>Portas customizadas</h4>
+        <p>Teste TCP direto em cada host:porta informado.</p>
+      </section>
+
+      <section class="manual__secao">
+        <h3>Como interpretar os resultados</h3>
+        <ul class="manual__legenda">
+          <li>
+            <span class="dot dot--ok"></span>
+            <strong>OK</strong> — tudo funcionando normalmente. Nada a fazer.
+          </li>
+          <li>
+            <span class="dot dot--warn"></span>
+            <strong>Atencao</strong> — o teste passou mas com alguma observacao. Funciona
+            agora mas pode dar problema. Revise.
+          </li>
+          <li>
+            <span class="dot dot--fail"></span>
+            <strong>Falha</strong> — algo nao esta funcionando como deveria. Precisa
+            ser resolvido antes da operacao.
+          </li>
+          <li>
+            <span class="dot dot--info"></span>
+            <strong>Info</strong> — apenas informacao contextual, nao indica problema
+            nem sucesso.
+          </li>
+        </ul>
+
+        <p class="manual__nota">
+          Cada card mostra a <strong>mensagem tecnica</strong> e, ao expandir, voce ve
+          as <strong>etapas</strong> que o teste executou em ordem. No relatorio baixado,
+          cada card tem ainda <strong>"O que isso significa"</strong>, <strong>"Causas mais
+          comuns"</strong> e <strong>"O que fazer"</strong> em linguagem comum.
+        </p>
+      </section>
+
+      <section class="manual__secao">
+        <h3>Banner vermelho de "Diagnostico interrompido"</h3>
+        <p>
+          Se o teste de HTTPS falhar (instancia errada ou inexistente), os testes
+          subsequentes (latencia, RabbitMQ, VucaLocal, impressoras) sao <strong>pulados
+          de proposito</strong>. Validar impressora se a instancia nao existe e' perda
+          de tempo e gera falsos positivos no relatorio.
+        </p>
+        <p>
+          O banner vermelho aparece com o motivo e a recomendacao. Corrija a instancia
+          e clique em "Executar diagnostico" de novo.
+        </p>
+      </section>
+
+      <section class="manual__secao">
+        <h3>Sobre o relatorio baixado</h3>
+        <p>
+          O arquivo HTML gerado e' <strong>auto-contido</strong>: nao depende de
+          internet, fonts externas ou imagens. Da' para mandar por WhatsApp/email
+          tranquilamente e quem receber abre direto no navegador (qualquer um).
+        </p>
+        <p>
+          Cada card no relatorio traz, alem da mensagem tecnica, secoes de
+          <strong>"O que esse teste verifica"</strong>, <strong>"Resultado encontrado"</strong>,
+          <strong>"O que isso significa"</strong>, e quando houver problema,
+          <strong>"Causas mais comuns"</strong> e <strong>"O que fazer"</strong> com
+          instrucoes especificas (ex: "vai em Configuracoes → Hora e Idioma → Sincronizar agora").
+        </p>
+        <p>
+          O relatorio tambem e' <strong>amigavel para impressao</strong> — abre todos os
+          detalhes e remove sombras quando voce manda imprimir.
+        </p>
+      </section>
+
+      <section class="manual__secao">
+        <h3>Perguntas frequentes</h3>
+
+        <h4>"DNS deu Atencao por wildcard — isso e' problema?"</h4>
+        <p>
+          Nao necessariamente. O dominio <code>vucasolution.com.br</code> esta atras do
+          Cloudflare, que usa wildcard DNS — qualquer nome resolve para o mesmo IP. Isso
+          significa que o DNS sozinho nao confirma a instancia, so' o HTTPS confirma. Se
+          o HTTPS deu OK abaixo do DNS, esta tudo bem.
+        </p>
+
+        <h4>"URL do VucaLocal aparece como 'nao informada'"</h4>
+        <p>
+          E' opcional — so' encha se o cliente realmente usa VucaLocal instalado na
+          maquina. Se nao usa, deixa em branco que o teste marca como info e segue.
+        </p>
+
+        <h4>"Impressora ESC/POS deu Atencao mas o TCP deu OK — entendi errado?"</h4>
+        <p>
+          Algumas impressoras (especialmente modelos antigos, USB-emuladas ou
+          genericas) aceitam conexao TCP mas nao respondem ao comando padrao de
+          status. Se a impressora estiver imprimindo normalmente apesar do aviso, ignore.
+          Se nao estiver, e' candidata a reinicio fisico.
+        </p>
+
+        <h4>"O teste de latencia estendida demora 30 segundos, e' normal?"</h4>
+        <p>
+          Sim. Esse teste faz 50 amostras espalhadas em 30s para detectar instabilidade
+          que testes curtos nao pegam. Durante esse tempo, outros cards continuam
+          aparecendo em paralelo gracas ao streaming ao vivo.
+        </p>
+
+        <h4>"Posso rodar de outro PC que nao seja o do caixa?"</h4>
+        <p>
+          Pode, desde que esteja na <strong>mesma rede</strong> que o PC do caixa. O
+          diagnostico testa <strong>a rede atual</strong> em que esta rodando. Se voce
+          rodar do seu notebook conectado no Wi-Fi do cliente, voce esta testando esse
+          Wi-Fi. Se rodar com 4G/dados moveis, voce esta testando a rede do seu celular,
+          nao a do cliente.
+        </p>
+      </section>
+
+    </div>
+  </details>
+
   <form id="js-form" class="card">
     <section class="form-section">
       <h2>Identificacao</h2>
       <div class="grid grid--2">
         <label>
           <span>Instancia</span>
-          <input type="text" id="instancia" name="instancia" placeholder="ex: lifeboxburger" required />
+          <input type="text" id="instancia" name="instancia" placeholder="ex: lifeboxburger" />
           <small>Sera testado <code id="js-host-preview">{instancia}.vucasolution.com.br</code></small>
         </label>
         <label>
@@ -57,6 +312,15 @@
       <div id="js-impressoras" class="impressoras"></div>
     </section>
 
+    <section class="form-section">
+      <div class="form-section__head">
+        <h2>Portas customizadas (opcional)</h2>
+        <button type="button" id="js-add-porta" class="btn btn--ghost">+ adicionar porta</button>
+      </div>
+      <div id="js-portas-customizadas" class="impressoras"></div>
+      <small style="color: var(--cinza4); font-size: 11px; display: block; margin-top: 8px;">Teste TCP em qualquer host/porta — util para validar APIs internas, bancos, servicos secundarios.</small>
+    </section>
+
     <div class="form-actions">
       <button type="submit" class="btn btn--primary" id="js-executar">Executar diagnostico</button>
     </div>
@@ -65,6 +329,19 @@
   <section id="js-progresso" class="card card--progresso hidden">
     <h2>Executando checks</h2>
     <ul id="js-progresso-lista" class="progresso-lista"></ul>
+  </section>
+
+  <section id="js-alerta-erro" class="card card--alerta hidden">
+    <div class="alerta__header">
+      <span class="alerta__icone" aria-hidden="true">!</span>
+      <h2 class="alerta__titulo">Diagnostico interrompido</h2>
+    </div>
+    <p class="alerta__resumo" id="js-alerta-resumo"></p>
+    <div class="alerta__detalhes" id="js-alerta-detalhes"></div>
+    <p class="alerta__cta">Confira o nome da instancia e tente novamente.</p>
+    <div class="alerta__acoes">
+      <button type="button" id="js-alerta-fechar" class="btn btn--ghost">Fechar</button>
+    </div>
   </section>
 
   <section id="js-resultado" class="card card--resultado hidden">
