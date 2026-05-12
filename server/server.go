@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
+	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -28,7 +30,49 @@ func (s *Server) Routes() http.Handler {
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(s.Assets))))
 	mux.HandleFunc("/api/diagnosticar", s.handleDiagnosticar)
 	mux.HandleFunc("/api/relatorio.html", s.handleRelatorioHTML)
-	return mux
+	// Middleware: log de cada request + recover de panics
+	return middlewareLog(recoverHandler(mux))
+}
+
+// middlewareLog escreve no log padrao toda request recebida com metodo, path,
+// status e duracao. E' o registro de "auditoria" basico do servidor.
+func middlewareLog(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inicio := time.Now()
+		// Wrapper para capturar status code
+		rec := &statusRecorder{ResponseWriter: w, status: 200}
+		next.ServeHTTP(rec, r)
+		dur := time.Since(inicio)
+		log.Printf("[HTTP] %s %s -> %d em %dms", r.Method, r.URL.Path, rec.status, dur.Milliseconds())
+	})
+}
+
+// recoverHandler captura panics em qualquer handler, loga e retorna 500 em
+// vez de derrubar o servidor inteiro. Garante que um bug em um check nao
+// torna o app inutilizavel.
+func recoverHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				stack := string(debug.Stack())
+				log.Printf("[PANIC] handler %s %s entrou em panic: %v\n%s", r.Method, r.URL.Path, rec, stack)
+				http.Error(w, "erro interno do servidor (registrado no log)", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+// statusRecorder envolve http.ResponseWriter para capturar o status code
+// escrito, util para o middleware de log.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -52,9 +96,12 @@ func (s *Server) handleDiagnosticar(w http.ResponseWriter, r *http.Request) {
 	}
 	var cfg checks.Config
 	if err := json.NewDecoder(r.Body).Decode(&cfg); err != nil {
+		log.Printf("[ERROR] json invalido em /api/diagnosticar: %v", err)
 		http.Error(w, "json invalido: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	log.Printf("[DIAG] iniciando diagnostico: instancia=%q, host_rabbit=%q, qtd_impressoras=%d, qtd_portas_custom=%d",
+		cfg.Instancia, cfg.RabbitMQ.Host, len(cfg.Impressoras), len(cfg.PortasCustomizadas))
 
 	w.Header().Set("Content-Type", "application/x-ndjson; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -81,6 +128,21 @@ func (s *Server) handleDiagnosticar(w http.ResponseWriter, r *http.Request) {
 	if flusher != nil {
 		flusher.Flush()
 	}
+
+	// Log final do diagnostico
+	ok, warn, fail := 0, 0, 0
+	for _, res := range rel.Resultados {
+		switch res.Status {
+		case checks.StatusOK:
+			ok++
+		case checks.StatusWarn:
+			warn++
+		case checks.StatusFail:
+			fail++
+		}
+	}
+	log.Printf("[DIAG] diagnostico finalizado: %d checks, %d OK, %d WARN, %d FAIL",
+		len(rel.Resultados), ok, warn, fail)
 }
 
 func (s *Server) handleRelatorioHTML(w http.ResponseWriter, r *http.Request) {

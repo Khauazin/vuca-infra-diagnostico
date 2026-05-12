@@ -60,14 +60,18 @@ type Config struct {
 }
 
 type RabbitConfig struct {
-	Host   string `json:"host"`
-	Portas []int  `json:"portas"`
+	Host    string `json:"host"`
+	Portas  []int  `json:"portas"`
+	Usuario string `json:"usuario,omitempty"`
+	Senha   string `json:"senha,omitempty"`
 }
 
 type Impressora struct {
-	Nome  string `json:"nome"`
-	IP    string `json:"ip"`
-	Porta int    `json:"porta"`
+	Nome         string `json:"nome"`
+	IP           string `json:"ip"`
+	Porta        int    `json:"porta"`
+	UnidadeID    string `json:"unidade_id,omitempty"`
+	ImpressoraID string `json:"impressora_id,omitempty"`
 }
 
 // TestePorta e' uma entrada de teste TCP arbitrario (host:porta com um nome

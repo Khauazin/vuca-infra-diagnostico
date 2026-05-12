@@ -485,8 +485,13 @@ func CheckLatenciaLonga(instancia string, emit func(SubPasso)) Resultado {
 		} else {
 			falhas++
 		}
-		// Espera o intervalo (compensando o tempo gasto).
-		time.Sleep(intervalo - time.Duration(dur)*time.Millisecond)
+		// Espera o intervalo (compensando o tempo gasto). Se a amostra foi
+		// muito lenta (dur > intervalo), pula a espera para nao quebrar o
+		// total de 30s — mas tambem nao deixa o sleep negativo (que retorna
+		// imediato e acelera o teste perdendo o objetivo de observacao).
+		if espera := intervalo - time.Duration(dur)*time.Millisecond; espera > 0 {
+			time.Sleep(espera)
+		}
 	}
 
 	perda := float64(falhas) / float64(totalAmostras) * 100

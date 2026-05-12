@@ -19,14 +19,21 @@
 
 <main class="container">
 
-  <details class="manual">
-    <summary class="manual__summary">
-      <span class="manual__icone">?</span>
-      <span class="manual__label">Como usar este diagnostico — manual completo</span>
-      <span class="manual__seta">▾</span>
-    </summary>
+  <button type="button" class="manual-trigger" id="js-abrir-manual">
+    <span class="manual__icone">?</span>
+    <span class="manual__label">Como usar este diagnostico — manual completo</span>
+  </button>
 
-    <div class="manual__corpo">
+  <div class="modal-overlay hidden" id="js-modal-manual" role="dialog" aria-modal="true" aria-labelledby="manual-titulo">
+    <div class="modal">
+      <header class="modal__header">
+        <h2 id="manual-titulo" class="modal__titulo">
+          <span class="manual__icone">?</span>
+          Como usar este diagnostico
+        </h2>
+        <button type="button" class="modal__fechar" id="js-fechar-manual" aria-label="Fechar manual">&times;</button>
+      </header>
+      <div class="modal__corpo manual__corpo">
 
       <section class="manual__secao">
         <h3>O que e este diagnostico?</h3>
@@ -88,25 +95,81 @@
 
           <dt>RabbitMQ — Portas</dt>
           <dd>
-            Portas TCP a testar separadas por virgula. Padrao: <code>5672</code> (protocolo
-            AMQP) e <code>15672</code> (painel de administracao). A 5672 e' a que importa
-            para impressao funcionar.
+            Sao as portas <strong>fixas</strong> do RabbitMQ: <code>5672</code> (onde
+            roda o protocolo AMQP que entrega os pedidos de impressao) e
+            <code>15672</code> (painel administrativo). Aparecem em cinza e nao podem
+            ser alteradas porque sao padrao mundial — qualquer RabbitMQ usa essas
+            mesmas portas. Nao mexa.
           </dd>
 
-          <dt>Impressoras</dt>
+          <dt>RabbitMQ — Usuario admin <em class="opcional">opcional</em></dt>
           <dd>
-            Lista das impressoras termicas da loja. Para cada uma: nome amigavel (ex:
-            "Cozinha", "Caixa"), IP na rede local e porta (padrao <code>9100</code>).
-            Suporta IP fixo, DHCP (se souber o IP atual) e impressoras Wi-Fi. Nao
-            suporta impressoras conectadas por cabo USB direto (essas nao tem como
-            ser testadas via rede).
+            E' o usuario que tem permissao de administrador no broker (servidor) do
+            RabbitMQ. Normalmente e' algo como <code>vuca</code>. <strong>Pra que
+            serve preencher:</strong> quando voce informa usuario + senha, o
+            diagnostico consegue <strong>entrar no broker</strong> e listar as filas
+            (queues) do cliente, ver quantas mensagens estao acumuladas, se tem
+            consumer ativo, etc. Sem isso, o teste so' valida que a porta esta
+            aberta — nao consegue ver o estado das filas.
+            <br><br>
+            <strong>Quando nao preencher:</strong> se voce nao tem essas credenciais
+            ou esta fazendo um teste rapido de conectividade, deixe em branco e o
+            diagnostico pula a parte de inspecao de filas.
           </dd>
 
-          <dt>Portas customizadas</dt>
+          <dt>RabbitMQ — Senha admin <em class="opcional">opcional</em></dt>
+          <dd>
+            A senha correspondente ao usuario admin. <strong>So' faz sentido
+            preencher se voce ja colocou o usuario.</strong> Ela e' salva no seu
+            navegador (igual aos outros campos), entao na proxima execucao voce nao
+            precisa digitar de novo.
+            <br><br>
+            <strong>Atencao:</strong> isso fica salvo apenas no <em>localStorage</em>
+            do navegador do PC que voce esta usando. Se outro tecnico abrir o app
+            em outro PC, ele precisa digitar de novo.
+          </dd>
+
+          <dt>Impressoras — Nome, IP, Porta</dt>
+          <dd>
+            Lista das impressoras termicas da loja. Para cada uma:
+            <ul>
+              <li><strong>Nome</strong>: apelido amigavel (ex: "Cozinha", "Caixa", "Balcao")</li>
+              <li><strong>IP</strong>: endereco IP da impressora na rede local (ex: <code>192.168.0.100</code>)</li>
+              <li><strong>Porta</strong>: padrao <code>9100</code> em quase todas as impressoras termicas</li>
+            </ul>
+            Suporta impressoras com IP fixo, DHCP (se voce souber o IP atual) e
+            impressoras Wi-Fi. <strong>Nao suporta</strong> impressoras conectadas
+            por cabo USB direto no PC — essas nao tem como ser testadas via rede.
+          </dd>
+
+          <dt>Impressoras — Unidade ID e Impressora ID <em class="opcional">opcional</em></dt>
+          <dd>
+            Sao identificadores numericos da impressora <strong>no sistema Vuca da
+            nuvem</strong>. Servem pra "amarrar" a impressora fisica (que voce
+            cadastra aqui) com a fila (queue) correspondente no RabbitMQ.
+            <br><br>
+            <strong>Pra que serve:</strong> quando preenchidos, o diagnostico
+            consegue verificar se cada impressora fisica tem a fila certa esperando
+            por ela na nuvem. Sem isso, ele so' lista as filas existentes — sem
+            saber qual e' qual.
+            <br><br>
+            <strong>Como descobrir os IDs:</strong> peca pro time backend Vuca ou
+            olhe no painel admin do cliente. O padrao da fila no RabbitMQ e'
+            <code>vucaprint_{instancia}_{unidade_id}_{impressora_id}</code>. Se voce
+            ve uma fila tipo <code>vucaprint_lifeboxburger_3046_0</code>, entao a
+            Unidade e' <code>3046</code> e a Impressora e' <code>0</code>.
+            <br><br>
+            <strong>Pode deixar em branco?</strong> Sim. Sem os IDs, voce ainda ve
+            no relatorio as filas que existem no broker — so' nao tera a
+            correlacao direta com a impressora fisica.
+          </dd>
+
+          <dt>Portas customizadas <em class="opcional">opcional</em></dt>
           <dd>
             Testes adicionais para qualquer servico que voce queira validar:
             maquininha TEF (porta 4096 ou similar), Postgres interno, API de
-            integracao, etc. Cada entrada e' apenas Nome + Host + Porta.
+            integracao, etc. Cada entrada e' apenas Nome + Host + Porta. O
+            diagnostico tenta abrir conexao TCP e reporta se funcionou ou nao.
           </dd>
         </dl>
       </section>
@@ -133,33 +196,67 @@
         </p>
 
         <h4>Conectividade</h4>
-        <p>
-          Validacoes ate a nuvem Vuca: resolucao DNS multi-servidor (sistema vs 1.1.1.1
-          vs 8.8.8.8), HTTPS direto na instancia, latencia ate o servidor, tempos por
-          fase (DNS/TCP/TLS/TTFB), validacao do certificado SSL (incluindo deteccao
-          de antivirus interceptando), e consistencia (3 requisicoes seguidas).
-        </p>
+        <p>Validacoes da conexao do cliente ate a nuvem Vuca. Inclui:</p>
+        <ul>
+          <li><strong>Resolucao DNS multi-servidor:</strong> resolve o nome da instancia usando o DNS do sistema, depois compara com Cloudflare (1.1.1.1) e Google (8.8.8.8). Se os resultados forem diferentes, e' sinal de DNS hijack ou cache zoado.</li>
+          <li><strong>HTTPS na instancia:</strong> tenta abrir a URL publica da instancia (<code>https://{instancia}.vucasolution.com.br</code>) e verifica o que respondeu — 200=OK, 404 com "default backend"=instancia nao existe.</li>
+          <li><strong>Latencia / Perda de pacote:</strong> 10 conexoes TCP em sequencia pra medir tempo medio e perda.</li>
+          <li><strong>Tempos por fase:</strong> mede separadamente DNS, TCP, TLS e TTFB. Permite identificar EXATAMENTE qual etapa esta lenta (DNS lento, TLS lento, etc.).</li>
+          <li><strong>Certificado TLS / SSL:</strong> valida que o certificado SSL nao esta expirado nem prestes a expirar, que a versao TLS e' moderna (1.2+), e <strong>detecta antivirus interceptando HTTPS</strong> (Bitdefender, Kaspersky, ESET, etc) que podem quebrar integracoes.</li>
+          <li><strong>Consistencia HTTPS:</strong> faz 3 requisicoes seguidas e compara — pega casos de "API responde 200 mas com erro no body" ou balanceador inconsistente.</li>
+        </ul>
 
         <h4>RabbitMQ</h4>
-        <p>
-          Acesso ao servidor de filas: porta TCP aberta + handshake AMQP completo
-          (garante que e' realmente RabbitMQ, nao algum outro servico ocupando a porta).
-        </p>
+        <p>Validacoes do broker de filas usado pela impressao em nuvem. Inclui:</p>
+        <ul>
+          <li><strong>Porta TCP 5672 e 15672:</strong> verifica que as portas estao abertas.</li>
+          <li><strong>Protocolo AMQP (5672):</strong> envia o handshake AMQP e valida que o servidor responde corretamente (garante que e' RabbitMQ real, nao outro servico ocupando a porta). Tambem mede o <strong>tempo do handshake</strong> — handshake lento (>500ms) = WARN, handshake critico (>2000ms) = FAIL.</li>
+          <li><strong>Management API (15672):</strong> testa o painel administrativo HTTP. Se voce preencheu usuario+senha admin no formulario, valida as credenciais e extrai a versao do RabbitMQ + nome do cluster.</li>
+          <li><strong>Estabilidade da conexao (heartbeat 10s):</strong> abre uma conexao e mantem ociosa por 10 segundos pra detectar se o roteador/firewall do cliente derruba conexoes idle (problema classico em algumas operadoras que faz o VucaPrint local "desconectar sozinho" a cada poucos minutos).</li>
+          <li><strong>Queues do cliente (com credenciais):</strong> quando voce preenche admin user+senha + instancia, o diagnostico lista todas as filas <code>vucaprint_{instancia}_*</code> no broker, mostra quantas mensagens cada uma tem, quantos consumers ativos, e flagra problemas (ex: fila sem consumer = ninguem vai consumir os pedidos). Se voce tambem preencheu os IDs nas impressoras, faz a correlacao direta impressora <-> fila.</li>
+        </ul>
 
         <h4>VucaLocal</h4>
         <p>
           Se a URL local foi informada, testa se o servico VucaLocal esta respondendo
-          e qual status retorna.
+          e qual status retorna. Tambem valida que a resposta nao e' do tipo
+          "default backend - 404" (que indicaria que a URL aponta pra um lugar errado).
         </p>
 
         <h4>Impressoras</h4>
-        <p>
-          Para cada impressora: teste TCP basico + comando ESC/POS de status (consegue
-          identificar tampa aberta, papel acabando, impressora travada). Nao imprime nada.
-        </p>
+        <p>Para cada impressora cadastrada, o diagnostico roda 2 testes:</p>
+        <ul>
+          <li><strong>TCP basico:</strong> tenta abrir conexao na porta da impressora. Confirma que ela esta acessivel pela rede.</li>
+          <li><strong>ESC/POS:</strong> envia o comando padrao "DLE EOT 1" (consulta de status) e le a resposta. Detecta se a impressora esta online, com tampa aberta, papel acabando, ou travada. <strong>Nao imprime nada</strong> — e' so' uma consulta.</li>
+        </ul>
 
         <h4>Portas customizadas</h4>
-        <p>Teste TCP direto em cada host:porta informado.</p>
+        <p>Teste TCP direto em cada host:porta informado. Para validar APIs internas, bancos, servicos secundarios.</p>
+      </section>
+
+      <section class="manual__secao">
+        <h3>Arquivo de log do diagnostico</h3>
+        <p>
+          Toda vez que o app roda, ele grava um arquivo <code>vuca-diag.log</code> na
+          mesma pasta do executavel. Esse arquivo registra <strong>tudo</strong> que
+          acontece nos bastidores: cada requisicao HTTP recebida, cada check iniciado e
+          finalizado (com status e duracao), e qualquer erro interno.
+        </p>
+        <p>
+          <strong>Quando esse log e' util?</strong>
+        </p>
+        <ul>
+          <li><strong>Quando algo da errado e nao da pra entender pela tela</strong> — o log mostra exatamente onde quebrou (mensagem de erro com linha do codigo, stack trace, etc.).</li>
+          <li><strong>Pra reportar bug pro time de desenvolvimento</strong> — anexa o log junto com a descricao do problema, eles entendem rapido o que aconteceu.</li>
+          <li><strong>Pra auditoria</strong> — historico de quem rodou diagnostico em qual cliente e quando.</li>
+        </ul>
+        <p class="manual__nota">
+          <strong>Onde achar:</strong> o app mostra o caminho exato do arquivo na janela
+          do terminal quando inicia. No Windows, geralmente fica em
+          <code>C:\Users\Seu_Usuario\Desktop\vuca-infra-diagnostico\vuca-diag.log</code>
+          (ao lado do <code>.exe</code>). O arquivo cresce conforme voce roda — pode
+          deletar quando quiser.
+        </p>
       </section>
 
       <section class="manual__secao">
@@ -268,10 +365,78 @@
           Wi-Fi. Se rodar com 4G/dados moveis, voce esta testando a rede do seu celular,
           nao a do cliente.
         </p>
+
+        <h4>"Preciso preencher Usuario e Senha admin do RabbitMQ?"</h4>
+        <p>
+          <strong>Nao e' obrigatorio.</strong> Sem eles, o diagnostico ainda valida que
+          o broker esta acessivel e que o protocolo AMQP esta funcionando. <strong>Com
+          eles</strong>, voce ganha 2 coisas:
+        </p>
+        <ol>
+          <li>Validacao das credenciais admin (se a senha foi alterada e ninguem avisou, voce descobre na hora)</li>
+          <li>Inspecao das filas (queues) do cliente — quantas tem, qtd de mensagens em cada, consumers ativos, se alguma esta sem consumer (= pedidos vao acumular sem imprimir)</li>
+        </ol>
+        <p>
+          Recomendo preencher sempre que voce tiver acesso a essas credenciais. Para
+          a Vuca, o usuario geralmente e' <code>vuca</code>.
+        </p>
+
+        <h4>"Onde acho os IDs de Unidade e Impressora?"</h4>
+        <p>
+          Os IDs estao no painel admin da Vuca (peca pro time backend ou consulte na
+          plataforma). Voce tambem pode descobrir pelo proprio RabbitMQ: se ja' rodou o
+          diagnostico com credenciais admin uma vez, o relatorio lista as filas no
+          formato <code>vucaprint_{instancia}_{unidade_id}_{impressora_id}</code>. Basta
+          dividir pelos underscores e voce ve os IDs.
+        </p>
+        <p>
+          Exemplo: se aparece <code>vucaprint_abobotanica_3046_0</code>, entao a Unidade
+          ID e' <code>3046</code> e a Impressora ID e' <code>0</code>. Esse IDs ficam
+          fixos no Vuca — uma vez descobertos, nunca mudam (a menos que reprovisionem o
+          cliente).
+        </p>
+
+        <h4>"Onde fica o arquivo de log? Como uso ele?"</h4>
+        <p>
+          O arquivo <code>vuca-diag.log</code> fica na mesma pasta do
+          <code>vuca-infra-diagnostico.exe</code>. Quando o app inicia, ele mostra o
+          caminho exato na janela do terminal preto.
+        </p>
+        <p>
+          Voce so' precisa olhar nele se algo deu errado e o relatorio nao ajudou — pode
+          abrir em qualquer editor de texto (Bloco de Notas serve). Cada linha tem
+          timestamp + tipo da mensagem + descricao. Pode mandar o arquivo inteiro pro
+          time de desenvolvimento se for reportar bug.
+        </p>
+
+        <h4>"Por que algumas queues sem consumer dao Atencao em vez de Falha?"</h4>
+        <p>
+          Porque "sem consumer" nao e' sempre problema. Pode ser:
+        </p>
+        <ul>
+          <li>Uma impressora especifica que esta desligada naquele momento (normal — alguem vai religar)</li>
+          <li>Uma fila de funcionalidade opcional que o cliente nao usa (esperado)</li>
+          <li>VucaPrint local sendo reiniciado (transitorio)</li>
+        </ul>
+        <p>
+          Por isso o diagnostico flagra como <strong>Atencao</strong> em vez de
+          <strong>Falha</strong>. Voce avalia caso a caso: se aquela impressora deveria
+          estar imprimindo agora, e' problema; se nao, ignora.
+        </p>
+
+        <h4>"O teste do RabbitMQ heartbeat (10s) demora muito"</h4>
+        <p>
+          E' intencional. O objetivo e' deixar a conexao ociosa por 10 segundos pra
+          detectar se o roteador do cliente derruba conexoes idle. Algumas operadoras
+          tem timeout de NAT em 30-60s — esse teste consegue detectar se vai dar
+          problema, antes do cliente reclamar "as impressoras desconectam sozinhas a
+          cada poucos minutos".
+        </p>
       </section>
 
+      </div>
     </div>
-  </details>
+  </div>
 
   <form id="js-form" class="card">
     <section class="form-section">
@@ -283,9 +448,9 @@
           <small>Sera testado <code id="js-host-preview">{instancia}.vucasolution.com.br</code></small>
         </label>
         <label>
-          <span>URL do VucaLocal</span>
+          <span>URL do VucaLocal <em class="opcional">opcional</em></span>
           <input type="text" id="vucalocal" name="vucalocal" placeholder="http://localhost:8080" />
-          <small>Endpoint local do VucaLocal (opcional)</small>
+          <small>Endpoint local do servico VucaLocal (deixe vazio se o cliente nao usa)</small>
         </label>
       </div>
     </section>
@@ -298,8 +463,21 @@
           <input type="text" id="rabbit_host" value="localhost" />
         </label>
         <label>
-          <span>Portas (separadas por virgula)</span>
-          <input type="text" id="rabbit_portas" value="5672, 15672" />
+          <span>Portas (padrao fixo)</span>
+          <input type="text" id="rabbit_portas" value="5672, 15672" readonly style="background:var(--cinza1); color:var(--cinza4); cursor:not-allowed;" />
+          <small>Portas padrao do RabbitMQ — nao podem ser alteradas</small>
+        </label>
+      </div>
+      <div class="grid grid--2" style="margin-top: 12px;">
+        <label>
+          <span>Usuario admin <em class="opcional">opcional</em></span>
+          <input type="text" id="rabbit_user" placeholder="vuca" autocomplete="off" />
+          <small>Quando preenchido, valida credenciais e inspeciona queues do cliente no broker</small>
+        </label>
+        <label>
+          <span>Senha admin <em class="opcional">opcional</em></span>
+          <input type="password" id="rabbit_senha" placeholder="••••••••" autocomplete="off" />
+          <small>Salva no navegador junto com os outros campos do formulario</small>
         </label>
       </div>
     </section>

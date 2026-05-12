@@ -2,6 +2,8 @@ package checks
 
 import (
 	"fmt"
+	"log"
+	"runtime/debug"
 	"time"
 )
 
@@ -43,7 +45,14 @@ func Executar(cfg Config, eventos chan<- Evento) Relatorio {
 	// (que sao forwardeados como eventos "subpasso"), e por fim envia o
 	// resultado completo. Retorna o Resultado para o caller (necessario para
 	// gate logic).
+	//
+	// Tambem loga inicio/fim de cada check + recover de panic (se um check
+	// quebrar, registra no log e devolve um Resultado de FAIL em vez de
+	// derrubar o servidor).
 	runCheck := func(categoria, nome string, executar func(emit func(SubPasso)) Resultado) Resultado {
+		log.Printf("[CHECK] inicio: %s / %s", categoria, nome)
+		inicio := time.Now()
+
 		enviar(Evento{Tipo: "check_inicio", Dados: Resultado{
 			Categoria: categoria,
 			Nome:      nome,
@@ -57,9 +66,30 @@ func Executar(cfg Config, eventos chan<- Evento) Relatorio {
 				SubPasso:       sp,
 			}})
 		}
-		res := executar(emit)
+
+		var res Resultado
+		func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					stack := string(debug.Stack())
+					log.Printf("[PANIC] check %s / %s entrou em panic: %v\n%s",
+						categoria, nome, rec, stack)
+					res = Resultado{
+						Categoria: categoria,
+						Nome:      nome,
+						Status:    StatusFail,
+						Mensagem:  fmt.Sprintf("Erro interno no check (registrado no log): %v", rec),
+						DuracaoMs: time.Since(inicio).Milliseconds(),
+					}
+				}
+			}()
+			res = executar(emit)
+		}()
+
 		rel.Resultados = append(rel.Resultados, res)
 		enviar(Evento{Tipo: "resultado", Dados: res})
+		log.Printf("[CHECK] fim: %s / %s — status=%s, %dms",
+			categoria, nome, res.Status, res.DuracaoMs)
 		return res
 	}
 
@@ -161,16 +191,39 @@ func Executar(cfg Config, eventos chan<- Evento) Relatorio {
 	if rabbitHost == "" {
 		rabbitHost = "localhost"
 	}
+	// Sinaliza se o usuario configurou RabbitMQ explicitamente. Quando nao
+	// configurou (host = "localhost" default + sem credenciais), pulamos os
+	// checks pesados (AMQP handshake, Heartbeat 10s, Management API, Queues)
+	// para nao gerar varios FAIL espurios.
+	rabbitConfigurado := rabbitHost != "" && rabbitHost != "localhost"
+	rabbitDeveTestar := rabbitConfigurado || cfg.RabbitMQ.Usuario != ""
+
 	for _, p := range cfg.RabbitMQ.Portas {
 		porta := p
 		hostPorta := rabbitHost + ":" + itoa(porta)
 		runCheck("RabbitMQ", hostPorta, func(emit func(SubPasso)) Resultado {
 			return CheckPortaTCP("RabbitMQ", hostPorta, rabbitHost, porta, emit)
 		})
-		// Para a porta AMQP (5672), valida o protocolo, nao so' a porta.
-		if porta == 5672 {
+		// AMQP + Heartbeat so' rodam se o usuario configurou RabbitMQ
+		// (porta 5672 espera AMQP). TCP check acima ja' sinaliza problema.
+		if porta == 5672 && rabbitDeveTestar {
 			runCheck("RabbitMQ", fmt.Sprintf("Protocolo AMQP em %s:%d", rabbitHost, porta), func(emit func(SubPasso)) Resultado {
 				return CheckRabbitMQAMQP(rabbitHost, porta, emit)
+			})
+			runCheck("RabbitMQ", "Estabilidade da conexao (10s idle)", func(emit func(SubPasso)) Resultado {
+				return CheckRabbitMQHeartbeat(rabbitHost, porta, emit)
+			})
+		}
+	}
+
+	// (A) Management API + (E) Queues do cliente — usa porta 15672
+	if rabbitDeveTestar {
+		runCheck("RabbitMQ", "Management API (porta 15672)", func(emit func(SubPasso)) Resultado {
+			return CheckRabbitMQManagement(rabbitHost, cfg.RabbitMQ.Usuario, cfg.RabbitMQ.Senha, emit)
+		})
+		if cfg.RabbitMQ.Usuario != "" && cfg.Instancia != "" {
+			runCheck("RabbitMQ", "Queues do cliente", func(emit func(SubPasso)) Resultado {
+				return CheckRabbitMQQueues(rabbitHost, cfg.RabbitMQ.Usuario, cfg.RabbitMQ.Senha, cfg.Instancia, "", cfg.Impressoras, emit)
 			})
 		}
 	}
