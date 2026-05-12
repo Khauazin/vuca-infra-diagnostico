@@ -101,8 +101,15 @@ func classificarTipoCheck(r Resultado) string {
 			return "validacao-interrompido"
 		}
 	case "RabbitMQ":
-		if strings.Contains(nome, "Protocolo AMQP") {
+		switch {
+		case strings.Contains(nome, "Protocolo AMQP"):
 			return "rabbitmq-amqp"
+		case strings.Contains(nome, "Management"):
+			return "rabbitmq-management"
+		case strings.Contains(nome, "Queues do cliente"):
+			return "rabbitmq-queues"
+		case strings.Contains(nome, "Estabilidade"):
+			return "rabbitmq-heartbeat"
 		}
 		return "rabbitmq-porta"
 	case "VucaLocal":
@@ -725,6 +732,117 @@ var explicacoesPorTipo = map[string]configCheck{
 				Acoes: []string{
 					"Confirme que o trafego para vucaprint-3.vucasolution.com.br:5672 nao esta sendo interceptado",
 					"Em redes corporativas, peca ao time de TI para liberar passagem direta sem inspecao",
+				},
+			},
+		},
+	},
+
+	"rabbitmq-management": {
+		OQueSignifica: "Acessa a Management API do RabbitMQ (porta 15672 via HTTP) para validar que e' um broker real e, se credenciais admin foram informadas, autentica e extrai informacoes do servidor (versao, cluster).",
+		Variantes: map[Status]variantePorStatus{
+			StatusOK: {
+				Interpretacao: "Management API respondendo normalmente. Se credenciais foram informadas, foram aceitas e a versao do broker foi identificada.",
+			},
+			StatusWarn: {
+				Interpretacao: "Management API respondeu mas com status inesperado.",
+				Causas: []string{
+					"Versao do RabbitMQ muito antiga sem suporte ao endpoint /api/overview",
+					"Proxy intermediario alterando a resposta",
+				},
+				Acoes: []string{
+					"Confira a versao do RabbitMQ no painel",
+					"Tente acessar http://host:15672 manualmente no navegador",
+				},
+			},
+			StatusFail: {
+				Interpretacao: "Management API inacessivel OU credenciais admin invalidas.",
+				Causas: []string{
+					"Porta 15672 nao esta aberta no firewall do broker",
+					"Usuario ou senha admin estao incorretos",
+					"Plugin rabbitmq_management nao habilitado no broker",
+					"Servidor errado ocupando a porta 15672",
+				},
+				Acoes: []string{
+					"Confirme que o broker tem o plugin de Management habilitado (rabbitmq-plugins enable rabbitmq_management)",
+					"Confira usuario/senha admin com o time backend Vuca",
+					"Tente abrir http://host:15672 no navegador",
+				},
+			},
+		},
+	},
+
+	"rabbitmq-queues": {
+		OQueSignifica: "Lista todas as queues do vhost informado, filtra as que pertencem ao cliente (padrao 'vucaprint_{instancia}_*'), e reporta o estado de cada uma: quantidade de mensagens em fila, consumidores ativos. Quando os IDs de Unidade/Impressora estao preenchidos no formulario, correlaciona cada impressora local com sua queue na nuvem.",
+		Variantes: map[Status]variantePorStatus{
+			StatusOK: {
+				Interpretacao: "Todas as queues do cliente encontradas, com consumers ativos e sem acumulo de mensagens. VucaPrint local esta conectado e consumindo normalmente.",
+			},
+			StatusWarn: {
+				Interpretacao: "Queues encontradas mas com alguma irregularidade — alguma sem consumer ativo (pedidos nao vao imprimir) ou acumulando mensagens (consumer nao da conta).",
+				Causas: []string{
+					"VucaPrint local desligado ou desconectado para alguma impressora especifica",
+					"Impressora travada (papel/tampa) — consumer parou de processar",
+					"Rede local instavel — consumer perde conexao repetidamente",
+					"Volume de pedidos acima da capacidade do consumer",
+				},
+				Acoes: []string{
+					"Reinicie o servico VucaPrint local na maquina do cliente",
+					"Confira o painel admin Vuca pra ver quais impressoras estao com problema",
+					"Cruze a lista de queues sem consumer com as impressoras fisicas — provavelmente alguma esta offline ou travada",
+				},
+			},
+			StatusFail: {
+				Interpretacao: "Nenhuma queue encontrada para esta instancia OU credenciais sem permissao no vhost. Indica que o cliente nao foi provisionado no broker.",
+				Causas: []string{
+					"Cliente nao provisionado no RabbitMQ (esqueceram de criar as queues)",
+					"Nome da instancia esta diferente do que foi cadastrado no broker",
+					"Usuario admin nao tem permissao de leitura no vhost",
+					"Cliente esta em outro broker (vucaprint-1 vs vucaprint-3, etc.)",
+				},
+				Acoes: []string{
+					"Confirme com o time backend que o cliente foi provisionado",
+					"Verifique se o broker correto foi informado (vucaprint-1, -2, -3 etc.)",
+					"Confira o nome exato da instancia no painel admin",
+				},
+			},
+			StatusInfo: {
+				Interpretacao: "Inspecao de queues pulada — instancia ou credenciais admin nao foram informadas.",
+				Acoes: []string{
+					"Preencha o nome da instancia e credenciais admin para inspecionar as queues",
+				},
+			},
+		},
+	},
+
+	"rabbitmq-heartbeat": {
+		OQueSignifica: "Abre uma conexao com o RabbitMQ e a mantem ociosa por 10 segundos para detectar se o NAT/firewall da rede do cliente derruba conexoes em idle. Esse e' um problema clássico em algumas operadoras (especialmente roteadores domesticos antigos) que causa o VucaPrint local 'desconectar sozinho' a cada poucos minutos.",
+		Variantes: map[Status]variantePorStatus{
+			StatusOK: {
+				Interpretacao: "Conexao sobreviveu 10 segundos ociosa — NAT/firewall do cliente nao esta derrubando conexoes idle. VucaPrint local deve manter conexao persistente com o broker sem problemas.",
+			},
+			StatusWarn: {
+				Interpretacao: "Conexao foi derrubada durante os 10s ociosos. Indica NAT com timeout muito curto OU firewall agressivo. Resultado pratico: VucaPrint vai reconectar a cada poucos minutos, podendo perder pedidos no meio.",
+				Causas: []string{
+					"Roteador domestico antigo com NAT timeout muito curto (alguns < 60s)",
+					"Firewall corporativo com politica de drop em conexoes ociosas",
+					"Operadora movel (4G/5G como backup) — mais agressiva ainda com idle",
+					"ISP fazendo connection-tracking limpeza muito agressiva",
+				},
+				Acoes: []string{
+					"Configure o RabbitMQ client local com heartbeat baixo (15-30s) para manter conexao ativa",
+					"Se possivel, troque o roteador do cliente por modelo mais novo",
+					"Em redes corporativas, peca pra TI estender o timeout de conexoes TCP no firewall",
+					"Considere internet via cabo em vez de 4G/5G como link principal",
+				},
+			},
+			StatusFail: {
+				Interpretacao: "Nao foi possivel sequer abrir a conexao para o teste — problema na porta 5672 ou no broker.",
+				Causas: []string{
+					"Porta 5672 fechada/bloqueada",
+					"Broker fora do ar",
+				},
+				Acoes: []string{
+					"Verifique o resultado do teste de porta TCP 5672 acima",
 				},
 			},
 		},

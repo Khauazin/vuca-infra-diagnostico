@@ -877,6 +877,29 @@ func CheckHTTPSConsistencia(instancia string, emit func(SubPasso)) Resultado {
 		}
 	}
 
+	// Caso especial: TODAS as 3 falharam por erro de rede.
+	// Sem isso a analise abaixo classificaria como "consistente" (todas
+	// retornaram status 0, "consistent").
+	todasFalharam := true
+	for _, am := range amostras {
+		if am.erro == "" {
+			todasFalharam = false
+			break
+		}
+	}
+	if todasFalharam {
+		r.SubPassos = subpassos
+		r.Status = StatusFail
+		r.Mensagem = fmt.Sprintf("Todas as 3 requisicoes falharam por erro de rede: %s", amostras[0].erro)
+		r.Detalhes = map[string]interface{}{
+			"url":         url,
+			"erro_comum":  amostras[0].erro,
+			"todas_falharam": true,
+		}
+		r.DuracaoMs = time.Since(inicio).Milliseconds()
+		return r
+	}
+
 	// Analise: status codes iguais? Tempos consistentes? Body com erro?
 	statusVariavel := false
 	statusBase := amostras[0].statusCode
@@ -899,11 +922,24 @@ func CheckHTTPSConsistencia(instancia string, emit func(SubPasso)) Resultado {
 	}
 	temposInstaveis := maxTempo > 3*minTempo && maxTempo-minTempo > 500
 
-	// Detecta 200-com-erro: status 2xx mas body contem indicios de erro
-	indiciosErro := []string{"\"error\"", "\"erro\"", "internal server", "exception", "\"failed\"", "\"falhou\""}
+	// Detecta 200-com-erro: status 2xx mas body parece ser JSON com erro
+	// embutido. So' procura por padroes de chave JSON ("error":, "errors":,
+	// "errorMessage":, "errorCode":) para evitar falso positivo em paginas
+	// HTML legitimas que contenham palavras tipo "exception", "error-handler",
+	// "internal server", etc. em scripts/meta tags.
+	indiciosErro := []string{
+		`"error":`, `"errors":`, `"errormessage":`, `"errorcode":`,
+		`"erro":`, `"erros":`, `"mensagemerro":`,
+		`"failed":`, `"falhou":`,
+	}
 	body200ComErro := false
 	for _, am := range amostras {
 		if am.statusCode >= 200 && am.statusCode < 300 {
+			// So' considera "body parece JSON" se comeca com { ou [ (apos trim)
+			bodyTrim := strings.TrimLeft(am.bodyHash, " \t\n\r")
+			if !strings.HasPrefix(bodyTrim, "{") && !strings.HasPrefix(bodyTrim, "[") {
+				continue
+			}
 			for _, indicio := range indiciosErro {
 				if strings.Contains(am.bodyHash, indicio) {
 					body200ComErro = true

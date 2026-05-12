@@ -3,14 +3,31 @@
 
   const STORAGE_KEY = 'vuca-diag-config';
 
-  function adicionarImpressora(imp = { nome: '', ip: '', porta: 9100 }) {
+  function adicionarImpressora(imp = { nome: '', ip: '', porta: 9100, unidade_id: '', impressora_id: '' }) {
     const wrap = document.createElement('div');
     wrap.className = 'impressora-row';
     wrap.innerHTML = `
-      <label><span>Nome</span><input type="text" class="js-imp-nome" placeholder="Cozinha" value="${imp.nome || ''}" /></label>
-      <label><span>IP</span><input type="text" class="js-imp-ip" placeholder="192.168.0.100" value="${imp.ip || ''}" /></label>
-      <label><span>Porta</span><input type="number" class="js-imp-porta" value="${imp.porta || 9100}" /></label>
-      <button type="button" class="btn btn--ghost btn--icon js-imp-remover" title="Remover">&times;</button>
+      <div class="impressora-row__corpo">
+        <div class="impressora-row__principal">
+          <label><span>Nome</span><input type="text" class="js-imp-nome" placeholder="Cozinha" value="${imp.nome || ''}" /></label>
+          <label><span>IP</span><input type="text" class="js-imp-ip" placeholder="192.168.0.100" value="${imp.ip || ''}" /></label>
+          <label><span>Porta</span><input type="number" class="js-imp-porta" value="${imp.porta || 9100}" /></label>
+        </div>
+        <div class="impressora-row__avancado">
+          <label>
+            <span>Unidade ID <em class="opcional">opcional</em></span>
+            <input type="text" class="js-imp-unidade" placeholder="ex: 3046" value="${imp.unidade_id || ''}" />
+          </label>
+          <label>
+            <span>Impressora ID <em class="opcional">opcional</em></span>
+            <input type="text" class="js-imp-impressora-id" placeholder="ex: 0" value="${imp.impressora_id || ''}" />
+          </label>
+        </div>
+      </div>
+      <button type="button" class="btn-remover js-imp-remover" title="Remover esta impressora">
+        <span class="btn-remover__icone" aria-hidden="true">🗑</span>
+        <span class="btn-remover__texto">Remover</span>
+      </button>
     `;
     wrap.querySelector('.js-imp-remover').addEventListener('click', () => wrap.remove());
     $('js-impressoras').appendChild(wrap);
@@ -20,10 +37,17 @@
     const wrap = document.createElement('div');
     wrap.className = 'impressora-row';
     wrap.innerHTML = `
-      <label><span>Nome</span><input type="text" class="js-porta-nome" placeholder="Postgres" value="${tp.nome || ''}" /></label>
-      <label><span>Host</span><input type="text" class="js-porta-host" placeholder="192.168.0.100" value="${tp.host || ''}" /></label>
-      <label><span>Porta</span><input type="number" class="js-porta-porta" value="${tp.porta || 8080}" /></label>
-      <button type="button" class="btn btn--ghost btn--icon js-porta-remover" title="Remover">&times;</button>
+      <div class="impressora-row__corpo">
+        <div class="impressora-row__principal">
+          <label><span>Nome</span><input type="text" class="js-porta-nome" placeholder="Postgres" value="${tp.nome || ''}" /></label>
+          <label><span>Host</span><input type="text" class="js-porta-host" placeholder="192.168.0.100" value="${tp.host || ''}" /></label>
+          <label><span>Porta</span><input type="number" class="js-porta-porta" value="${tp.porta || 8080}" /></label>
+        </div>
+      </div>
+      <button type="button" class="btn-remover js-porta-remover" title="Remover esta porta">
+        <span class="btn-remover__icone" aria-hidden="true">🗑</span>
+        <span class="btn-remover__texto">Remover</span>
+      </button>
     `;
     wrap.querySelector('.js-porta-remover').addEventListener('click', () => wrap.remove());
     $('js-portas-customizadas').appendChild(wrap);
@@ -32,11 +56,17 @@
   function lerConfig() {
     const portasStr = $('rabbit_portas').value;
     const portas = portasStr.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-    const impressoras = [...document.querySelectorAll('#js-impressoras .impressora-row')].map(row => ({
-      nome: row.querySelector('.js-imp-nome').value.trim(),
-      ip: row.querySelector('.js-imp-ip').value.trim(),
-      porta: parseInt(row.querySelector('.js-imp-porta').value, 10) || 9100,
-    })).filter(i => i.ip);
+    const impressoras = [...document.querySelectorAll('#js-impressoras .impressora-row')].map(row => {
+      const unidadeEl = row.querySelector('.js-imp-unidade');
+      const impIDEl = row.querySelector('.js-imp-impressora-id');
+      return {
+        nome: row.querySelector('.js-imp-nome').value.trim(),
+        ip: row.querySelector('.js-imp-ip').value.trim(),
+        porta: parseInt(row.querySelector('.js-imp-porta').value, 10) || 9100,
+        unidade_id: unidadeEl ? unidadeEl.value.trim() : '',
+        impressora_id: impIDEl ? impIDEl.value.trim() : '',
+      };
+    }).filter(i => i.ip);
     const portasCustomizadas = [...document.querySelectorAll('#js-portas-customizadas .impressora-row')].map(row => ({
       nome: row.querySelector('.js-porta-nome').value.trim(),
       host: row.querySelector('.js-porta-host').value.trim(),
@@ -46,7 +76,12 @@
     return {
       instancia: $('instancia').value.trim(),
       vucalocal: $('vucalocal').value.trim(),
-      rabbitmq: { host: $('rabbit_host').value.trim() || 'localhost', portas },
+      rabbitmq: {
+        host: $('rabbit_host').value.trim() || 'localhost',
+        portas,
+        usuario: $('rabbit_user').value.trim(),
+        senha: $('rabbit_senha').value,
+      },
       impressoras,
       portas_customizadas: portasCustomizadas,
     };
@@ -65,7 +100,10 @@
       if (cfg.vucalocal) $('vucalocal').value = cfg.vucalocal;
       if (cfg.rabbitmq) {
         if (cfg.rabbitmq.host) $('rabbit_host').value = cfg.rabbitmq.host;
-        if (Array.isArray(cfg.rabbitmq.portas)) $('rabbit_portas').value = cfg.rabbitmq.portas.join(', ');
+        // Portas sao fixas (readonly) — nao restaura do localStorage para nao
+        // mostrar valores antigos diferentes do padrao
+        if (cfg.rabbitmq.usuario) $('rabbit_user').value = cfg.rabbitmq.usuario;
+        if (cfg.rabbitmq.senha) $('rabbit_senha').value = cfg.rabbitmq.senha;
       }
       if (Array.isArray(cfg.impressoras) && cfg.impressoras.length) {
         $('js-impressoras').innerHTML = '';
@@ -213,6 +251,11 @@
       card = criarCardExecutando(categoria, nome);
       $('js-detalhes').appendChild(card);
       cardsAtivos.set(key, card);
+      // Auto-scroll suave dentro do container scrollavel para deixar o card
+      // recem-criado visivel (especialmente o em execucao)
+      requestAnimationFrame(() => {
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      });
     }
     return card;
   }
@@ -378,6 +421,25 @@
     $('js-alerta-fechar').addEventListener('click', () => {
       $('js-alerta-erro').classList.add('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    // Modal do manual de uso
+    const modal = $('js-modal-manual');
+    const abrirModal = () => {
+      modal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden'; // trava scroll da pagina
+    };
+    const fecharModal = () => {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    };
+    $('js-abrir-manual').addEventListener('click', abrirModal);
+    $('js-fechar-manual').addEventListener('click', fecharModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) fecharModal(); // click no overlay (fora do modal)
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) fecharModal();
     });
 
     carregarConfig();

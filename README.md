@@ -184,18 +184,73 @@ O servidor sobe em `http://127.0.0.1:7777` e abre o navegador automaticamente.
 
 ### Build para distribuição
 
-```bash
-# Windows x86_64
-GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/vuca-infra-diagnostico.exe .
+Gera binários otimizados (single-file, ~10MB, sem dependências runtime) prontos pra distribuir pros técnicos de campo.
 
-# macOS ARM64 (Apple Silicon)
-GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/vuca-infra-diagnostico-mac .
+**PowerShell (Windows — recomendado pra quem desenvolve daqui):**
 
-# macOS Intel
-GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/vuca-infra-diagnostico-mac-intel .
+```powershell
+mkdir dist -ErrorAction SilentlyContinue
+
+# Windows 64-bit — para PCs dos técnicos
+$env:GOOS="windows"; $env:GOARCH="amd64"
+go build -ldflags="-s -w" -o dist\vuca-infra-diagnostico.exe .
+
+# macOS Apple Silicon — para Macs M1/M2/M3 (2020 em diante, maioria hoje)
+$env:GOOS="darwin"; $env:GOARCH="arm64"
+go build -ldflags="-s -w" -o dist\vuca-infra-diagnostico-mac .
+
+# macOS Intel — opcional, só se houver técnico com Mac pré-2020
+$env:GOOS="darwin"; $env:GOARCH="amd64"
+go build -ldflags="-s -w" -o dist\vuca-infra-diagnostico-mac-intel .
+
+# Reseta as variáveis de ambiente
+$env:GOOS=$null; $env:GOARCH=$null
+
+# Lista os arquivos gerados
+dir dist
 ```
 
-Binário resultante: ~10MB, single-file, sem dependências runtime.
+**Bash (Linux / macOS / WSL):**
+
+```bash
+mkdir -p dist
+
+GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/vuca-infra-diagnostico.exe .
+GOOS=darwin  GOARCH=arm64 go build -ldflags="-s -w" -o dist/vuca-infra-diagnostico-mac .
+GOOS=darwin  GOARCH=amd64 go build -ldflags="-s -w" -o dist/vuca-infra-diagnostico-mac-intel .
+
+ls -lh dist/
+```
+
+### Como o técnico usa o binário
+
+**Windows:**
+
+1. Recebe o `vuca-infra-diagnostico.exe`
+2. Roda dois cliques OU pelo terminal
+3. O navegador abre automaticamente em `http://localhost:7777`
+
+Se o **Smart App Control** bloquear: vai em `Configurações → Privacidade e segurança → Segurança do Windows → Proteção contra vírus e ameaças → Exclusões` e adiciona a pasta onde o `.exe` está.
+
+**macOS:**
+
+1. Recebe o `vuca-infra-diagnostico-mac` (ou `-mac-intel` se for Mac Intel)
+2. Abre o Terminal na pasta do arquivo
+3. Dá permissão de execução:
+
+   ```bash
+   chmod +x vuca-infra-diagnostico-mac
+   ```
+
+4. Roda:
+
+   ```bash
+   ./vuca-infra-diagnostico-mac
+   ```
+
+5. macOS vai bloquear na primeira vez ("developer unverified" / "não foi possível verificar o desenvolvedor"). Resolva indo em:
+
+   `Configurações do Sistema → Privacidade e Segurança` → rola até o final → aparece a mensagem "vuca-infra-diagnostico-mac foi bloqueado" com botão **"Permitir Mesmo Assim"** → clica → roda o binário de novo → vai funcionar.
 
 ### Verificação de qualidade
 
