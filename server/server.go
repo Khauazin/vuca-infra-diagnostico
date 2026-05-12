@@ -61,20 +61,23 @@ func (s *Server) handleDiagnosticar(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 
 	flusher, _ := w.(http.Flusher)
-	progresso := make(chan checks.Resultado, 8)
+	eventos := make(chan checks.Evento, 32)
+	relCh := make(chan checks.Relatorio, 1)
 	enc := json.NewEncoder(w)
 
 	go func() {
-		for res := range progresso {
-			enc.Encode(map[string]interface{}{"tipo": "resultado", "dados": res})
-			if flusher != nil {
-				flusher.Flush()
-			}
-		}
+		relCh <- checks.Executar(cfg, eventos)
 	}()
 
-	rel := checks.Executar(cfg, progresso)
-	enc.Encode(map[string]interface{}{"tipo": "final", "dados": rel})
+	for ev := range eventos {
+		enc.Encode(ev)
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+
+	rel := <-relCh
+	enc.Encode(checks.Evento{Tipo: "final", Dados: rel})
 	if flusher != nil {
 		flusher.Flush()
 	}
@@ -112,6 +115,30 @@ func (s *Server) handleRelatorioHTML(w http.ResponseWriter, r *http.Request) {
 				return "info"
 			}
 		},
+		"statusTexto": func(s checks.Status) string {
+			switch s {
+			case checks.StatusOK:
+				return "OK"
+			case checks.StatusWarn:
+				return "ATENCAO"
+			case checks.StatusFail:
+				return "FALHA"
+			default:
+				return "INFO"
+			}
+		},
+		"statusIcone": func(s checks.Status) string {
+			switch s {
+			case checks.StatusOK:
+				return "✓"
+			case checks.StatusWarn:
+				return "!"
+			case checks.StatusFail:
+				return "✗"
+			default:
+				return "i"
+			}
+		},
 		"contar": func(rs []checks.Resultado, st checks.Status) int {
 			n := 0
 			for _, r := range rs {
@@ -123,6 +150,80 @@ func (s *Server) handleRelatorioHTML(w http.ResponseWriter, r *http.Request) {
 		},
 		"formatar": func(t time.Time) string {
 			return t.Format("02/01/2006 15:04:05")
+		},
+		"explicar": func(r checks.Resultado) checks.Explicacao {
+			return checks.ExplicarResultado(r)
+		},
+		"vereditoClasse": func(rs []checks.Resultado) string {
+			temFail, temWarn := false, false
+			for _, r := range rs {
+				if r.Status == checks.StatusFail {
+					temFail = true
+				}
+				if r.Status == checks.StatusWarn {
+					temWarn = true
+				}
+			}
+			if temFail {
+				return "fail"
+			}
+			if temWarn {
+				return "warn"
+			}
+			return "ok"
+		},
+		"vereditoStatus": func(rs []checks.Resultado) checks.Status {
+			temFail, temWarn := false, false
+			for _, r := range rs {
+				if r.Status == checks.StatusFail {
+					temFail = true
+				}
+				if r.Status == checks.StatusWarn {
+					temWarn = true
+				}
+			}
+			if temFail {
+				return checks.StatusFail
+			}
+			if temWarn {
+				return checks.StatusWarn
+			}
+			return checks.StatusOK
+		},
+		"addOne": func(i int) int { return i + 1 },
+		"vereditoTitulo": func(rs []checks.Resultado) string {
+			temFail, temWarn := false, false
+			for _, r := range rs {
+				if r.Status == checks.StatusFail {
+					temFail = true
+				}
+				if r.Status == checks.StatusWarn {
+					temWarn = true
+				}
+			}
+			switch {
+			case temFail:
+				return "Ambiente com problemas criticos"
+			case temWarn:
+				return "Ambiente com pontos de atencao"
+			default:
+				return "Ambiente pronto para operacao"
+			}
+		},
+		"vereditoResumo": func(rs []checks.Resultado) string {
+			ok, warn, fail := 0, 0, 0
+			for _, r := range rs {
+				switch r.Status {
+				case checks.StatusOK:
+					ok++
+				case checks.StatusWarn:
+					warn++
+				case checks.StatusFail:
+					fail++
+				}
+			}
+			total := len(rs)
+			return fmt.Sprintf("De %d verificacoes realizadas: %d passaram, %d com aviso, %d com falha.", total, ok, warn, fail)
 		},
 	}).Parse(string(tplBytes))
 	if err != nil {
